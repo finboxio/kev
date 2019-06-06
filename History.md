@@ -1,4 +1,12 @@
 
+1.0.0 / 2019-06-06
+==================
+  * Transition to docker/jest dev environment
+  * Rewrite API for async
+  * Support atomic transactions in mongo/redis
+  * Dataloaders for batching get/set/del requests
+  * Support for child buckets using kev.withPrefix('child')
+
 0.6.8 / 2017-02-21
 ==================
 
