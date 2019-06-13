@@ -1,4 +1,9 @@
 
+1.0.1 / 2019-06-13
+==================
+
+  * Queue close until next tick
+
 1.0.0 / 2019-06-06
 ==================
   * Transition to docker/jest dev environment
