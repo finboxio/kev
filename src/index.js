@@ -152,7 +152,10 @@ module.exports = class Kev {
   }
 
   async close () {
-    return this.store.close()
+    // Wait until next tick to close because loaders may have queued operations
+    return new Promise((resolve, reject) => {
+      process.nextTick(() => this.store.close().then(resolve).catch(reject))
+    })
   }
 
   prefixed (key = '') {
