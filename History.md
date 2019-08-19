@@ -1,4 +1,9 @@
 
+1.1.0 / 2019-08-18
+==================
+
+  * Add v8 serialization for improved performance
+
 1.0.1 / 2019-06-13
 ==================
 
