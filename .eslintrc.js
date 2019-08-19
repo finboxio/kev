@@ -14,6 +14,7 @@ module.exports = {
   },
   plugins: [ 'jest' ],
   rules: {
-    camelcase: 'off'
+    camelcase: 'off',
+    'array-bracket-spacing': [ 'error', 'always' ]
   }
 }

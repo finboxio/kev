@@ -1,4 +1,6 @@
 const zlib = require('zlib')
+const v8 = require('v8')
+const { promisify } = require('util')
 
 const ms = require('ms')
 const transform = require('stream-transform')
@@ -8,21 +10,51 @@ const Resurrect = require('resurrect-js')
 const Plugin = require('./plugins')
 
 module.exports = class Kev {
-  constructor ({ url, ttl, prefix = [], tags = [], compression = false, packer, unpacker, ...plugin_opts } = {}) {
+  constructor ({ url, ttl, prefix = [], tags = [], compression = false, serializer, ...plugin_opts } = {}) {
     this.store = Plugin(url, plugin_opts)
     this.ttl = ttl
     this.prefix = Array.isArray(prefix) ? prefix : [ prefix ]
     this.default_tags = tags
     this.compression = compression
+    this.serializer = {}
+    switch (serializer) {
+      case 'v8':
+        this.serializer.pack = v8.serialize.bind(v8)
+        this.serializer.unpack = v8.deserialize.bind(v8)
+        break
+      case 'json':
+        this.serializer.pack = JSON.stringify
+        this.serializer.unpack = (data) => data && JSON.parse(data)
+        break
+      case 'resurrect':
+        const resurrector = new Resurrect({ prefix: '__kev#', cleanup: true })
+        this.serializer.pack = resurrector.stringify.bind(resurrector)
+        this.serializer.unpack = resurrector.resurrect.bind(resurrector)
+        break
+      case 'raw':
+        this.serializer.pack = noop
+        this.serializer.unpack = noop
+        break
+      default:
+        const { pack, unpack } = serializer || {}
+        this.serializer.pack = pack || this.store.pack || noop
+        this.serializer.unpack = unpack || this.store.unpack || noop
+    }
+  }
 
-    const resurrector = new Resurrect({ prefix: '__kev#', cleanup: true })
-    this.packer = (packer || unpacker) ? packer : resurrector.stringify.bind(resurrector)
-    this.unpacker = (packer || unpacker) ? unpacker : resurrector.resurrect.bind(resurrector)
+  get opts () {
+    return {
+      ttl: this.ttl,
+      prefix: this.prefix,
+      tags: this.default_tags,
+      compression: this.compression,
+      serializer: this.serializer
+    }
   }
 
   withPrefix (prefix) {
     prefix = this.prefix.concat(prefix)
-    const clone = new Kev({ prefix, tags: this.default_tags, ttl: this.ttl, compression: this.compresssion })
+    const clone = new Kev({ ...this.opts, prefix })
     clone.store = this.store
     return clone
   }
@@ -30,13 +62,13 @@ module.exports = class Kev {
   // TODO: augment tags with parent prefixes as well
   withTags (tags) {
     tags = this.default_tags.concat(tags)
-    const clone = new Kev({ tags, prefix: this.prefix, ttl: this.ttl, compression: this.compression })
+    const clone = new Kev({ ...this.opts, tags })
     clone.store = this.store
     return clone
   }
 
   withTTL (ttl) {
-    const clone = new Kev({ ttl, tags: this.default_tags, prefix: this.prefix, compression: this.compression })
+    const clone = new Kev({ ...this.opts, ttl })
     clone.store = this.store
     return clone
   }
@@ -132,7 +164,6 @@ module.exports = class Kev {
       const dropped = await Promise.all(pattern.map((p) => this.dropKeys(p)))
       return zip(pattern, dropped)
     }
-
     pattern = this.prefixed(pattern)
     return this.store.dropKeys.load(pattern)
   }
@@ -167,32 +198,81 @@ module.exports = class Kev {
   }
 
   async pack (value) {
-    value = this.packer(value)
-    if (!this.compression) return value
-
-    const fn = this.compression.type === 'gzip' ? 'gzip' : 'deflate'
-    const encoding = this.compression.encoding || 'base64'
-    return new Promise((resolve, reject) => {
-      zlib[fn](value, this.compression, (err, buf) => {
-        if (err) reject(err)
-        else resolve(buf.toString(encoding))
-      })
-    })
+    const packed = this.serializer.pack(value)
+    if (!this.compression) {
+      return packed
+    } else {
+      const compressed = await this.compress(packed)
+      return compressed
+    }
   }
 
   async unpack (value, { decompress = true } = {}) {
     if (value === undefined) return value
-    if (!this.compression) return this.unpacker(value)
-    if (!decompress) return value
+    if (!this.compression) return this.serializer.unpack(value)
 
-    const fn = this.compression.type === 'gzip' ? 'gunzip' : 'inflate'
-    const encoding = this.compression.encoding || 'base64'
-    return new Promise((resolve, reject) => {
-      zlib[fn](Buffer.from(value, encoding), this.compression, (err, val) => {
-        if (err) reject(err)
-        else resolve(this.unpacker(val))
-      })
-    })
+    if (!decompress) {
+      if (this.compression.encoding) {
+        return Buffer
+          .from(value, this.compression.encoding)
+          .slice(1)
+          .toString(this.compression.encoding)
+      } else {
+        const raw = value.slice(1)
+        return raw
+      }
+    } else {
+      const decompressed = await this.decompress(value)
+      return this.serializer.unpack(decompressed)
+    }
+  }
+
+  async compress (data) {
+    const opts = this.compression
+    const fn = {
+      gzip: 'gzip',
+      deflate: 'deflate',
+      brotli: 'brotliCompress'
+    }[opts.type]
+
+    let compressible = data
+    let serialization = 0
+    if (typeof compressible === 'string') {
+      serialization = 1
+      compressible = Buffer.from(compressible)
+    } else if (!(compressible instanceof Buffer)) {
+      serialization = 2
+      compressible = v8.serialize(compressible)
+    }
+
+    const compressed = await promisify(zlib[fn])(compressible, opts)
+    const buffer = Buffer.concat([ Buffer.from([ serialization ]), compressed ])
+    return opts.encoding ? buffer.toString(opts.encoding) : buffer
+  }
+
+  async decompress (data) {
+    const opts = this.compression
+    const fn = {
+      gzip: 'gunzip',
+      deflate: 'inflate',
+      brotli: 'brotliDecompress'
+    }[opts.type]
+
+    if (opts.encoding) {
+      data = Buffer.from(data, opts.encoding)
+    }
+
+    const serialization = data.readUInt8(0)
+    const decompressible = data.slice(1)
+
+    let decompressed = await promisify(zlib[fn])(decompressible, opts)
+    if (serialization === 1) {
+      decompressed = decompressed.toString()
+    } else if (serialization === 2) {
+      decompressed = v8.deserialize(decompressed)
+    }
+
+    return decompressed
   }
 }
 
@@ -209,3 +289,5 @@ const zip = (keys, values) => {
     return zipped
   }, {})
 }
+
+const noop = (v) => v

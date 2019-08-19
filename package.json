@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest",
     "lint": "eslint src",
+    "performance": "node src/__tests__/performance.js",
     "precommit": "npm run lint",
     "prepush": "npm run dc:test",
     "dc:destroy": "docker-compose $(make dc.files) down -v --remove-orphans",
@@ -22,34 +23,41 @@
   "author": "Finbox Inc.",
   "license": "MIT",
   "devDependencies": {
-    "delay": "4.2.0",
+    "delay": "4.3.0",
     "envvar": "2.0.0",
-    "eslint": "5.16.0",
-    "eslint-config-standard": "12.0.0",
-    "eslint-plugin-import": "2.17.3",
-    "eslint-plugin-jest": "22.6.4",
+    "eslint": "6.1.0",
+    "eslint-config-standard": "13.0.1",
+    "eslint-plugin-import": "2.18.2",
+    "eslint-plugin-jest": "22.15.1",
     "eslint-plugin-node": "9.1.0",
-    "eslint-plugin-promise": "4.1.1",
+    "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-standard": "4.0.0",
-    "husky": "2.4.0",
-    "jest": "24.8.0"
+    "husky": "3.0.3",
+    "jest": "24.8.0",
+    "uid": "0.0.2"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/finboxio/kev"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "core.spec.js"
+    ]
   },
   "dependencies": {
+    "bytes": "3.1.0",
     "dataloader": "1.4.0",
     "glob-to-regexp": "0.4.1",
     "into-stream": "5.1.0",
-    "ioredis": "4.9.5",
-    "mongodb": "3.2.7",
-    "ms": "2.1.1",
+    "ioredis": "4.14.0",
+    "lru-cache": "5.1.1",
+    "mongodb": "3.3.0",
+    "ms": "2.1.2",
     "resurrect-js": "1.0.1",
     "stream-to-array": "2.3.0",
-    "stream-transform": "2.0.0"
+    "stream-transform": "2.0.1"
   }
 }

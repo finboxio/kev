@@ -20,6 +20,8 @@ module.exports = (url = 'memory://', { loader, memory, mongo, redis }) => {
 // TODO: support dataloader caching on 'get'
 const loaders = (plugin, options) => {
   return {
+    pack: plugin.pack,
+    unpack: plugin.unpack,
     get: new DataLoader(plugin.get.bind(plugin), { ...options, cache: false }),
     set: new DataLoader(plugin.set.bind(plugin), { ...options, cache: false }),
     del: new DataLoader(plugin.del.bind(plugin), { ...options, cache: false }),

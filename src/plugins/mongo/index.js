@@ -30,7 +30,11 @@ module.exports = class KevMongo {
 
     const mapped = docs.reduce((map, doc) => {
       if (doc.expires_at && doc.expires_at < now) return map
-      map[doc.key] = JSON.parse(doc.value)
+      if (doc.value && doc.value._bsontype === 'Binary') {
+        map[doc.key] = doc.value.buffer
+      } else {
+        map[doc.key] = doc.value
+      }
       return map
     }, {})
 
@@ -48,11 +52,10 @@ module.exports = class KevMongo {
 
         const operations = keyvalues.map((kv) => {
           const { key, value, ttl, tags = [] } = kv
-          const sanitized = JSON.stringify(value)
           const op = {
             replaceOne: {
               filter: { key },
-              replacement: { key, value: sanitized, tags },
+              replacement: { key, value, tags },
               upsert: true
             }
           }

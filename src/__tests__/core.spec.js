@@ -1,17 +1,38 @@
 const delay = require('delay')
-const env = require('envvar')
+const uid = require('uid')
+const zlib = require('zlib')
+const { promisify } = require('util')
 
 const Kev = require('..')
 
-const REDIS_URL = env.string('REDIS_URL', '')
-const MONGO_URL = env.string('MONGO_URL', '')
+module.exports = (url) => {
+  const compressions = [ false, { type: 'gzip' }, { type: 'deflate', encoding: 'hex' }, { type: 'brotli', encoding: 'base64' } ]
+  const serializers = [ undefined, 'v8', 'json', 'raw', 'resurrect' ]
+  for (const compression of compressions) {
+    for (const serializer of serializers) {
+      runTests({ url, compression, serializer }, { skip: !url })
+    }
+  }
+}
 
-const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) => {
+const runTests = ({ url, serializer, compression = false }, { skip = false } = {}) => {
   const it = skip ? test.skip : test
 
-  describe(`${plugin} (compression=${compression})`, () => {
-    const prefix = 'test'
-    const kev = new Kev({ url, prefix, compression, tags: [ 't1' ] })
+  const test_type_restoration = true &&
+    /* json.stringified data does not maintain type info */
+    ![ 'json' ].includes(serializer) &&
+    /* redis will not persist types unless serializer supports it or compression is enabled */
+    !(url.match(/redis:|mongo:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+
+  const test_undef_restoration = true &&
+    /* json.stringified data does not maintain undefined info */
+    ![ 'json' ].includes(serializer) &&
+    /* redis/mongo will not persist types unless serializer supports it or compression is enabled */
+    !(url.match(/redis:|mongo:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+
+  describe(`${url} (compression=${compression && compression.type}, serializer=${serializer})`, () => {
+    const prefix = `test-${uid()}`
+    const kev = new Kev({ url, prefix, compression, serializer, tags: [ 't1' ] })
 
     beforeEach(() => kev.dropKeys())
     afterAll(() => kev.close())
@@ -58,50 +79,67 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
         expect(get).toStrictEqual('string')
       })
 
-      it('should store boolean  values', async () => {
+      it('should store boolean values', async () => {
         await kev.set('key', true)
         const get = await kev.get('key')
         expect(get).toStrictEqual(true)
       })
 
-      it('should store date values', async () => {
-        await kev.set('key', new Date(1))
-        const get = await kev.get('key')
-        expect(get).toStrictEqual(new Date(1))
-      })
+      if (test_type_restoration) {
+        it('should store date values', async () => {
+          await kev.set('key', new Date(1))
+          const get = await kev.get('key')
+          expect(get.constructor.name).toBe('Date')
+          expect(get).toEqual(new Date(1))
+        })
 
-      it('should store regexp values', async () => {
-        await kev.set('key', /xyz/)
-        const get = await kev.get('key')
-        expect(get).toStrictEqual(/xyz/)
+        it('should store regexp values', async () => {
+          await kev.set('key', /xyz/)
+          const get = await kev.get('key')
+          expect(get.constructor.name).toBe('RegExp')
+          expect(get).toEqual(/xyz/)
+        })
+
+        it('should store circular references', async () => {
+          const circular = { a: 1 }
+          circular.circular = circular
+          await kev.set('circular', circular)
+          const get = await kev.get('circular')
+          expect(get.circular.circular.a).toStrictEqual(1)
+        })
+      }
+
+      it('should store non-truthy values', async () => {
+        const values = { num: 0, str: '', bool: false, nil: null }
+        if (test_undef_restoration) {
+          values.undef = undefined
+        }
+
+        await kev.set(values)
+        const get = await kev.get(Object.keys(values))
+        expect(get).toStrictEqual(values)
       })
 
       it('should store array values', async () => {
-        await kev.set('key', [ 1, '2', new Date(3), !4 ])
+        const array = [ 1, '2', !4 ]
+        if (test_undef_restoration) array.push(undefined)
+        if (test_type_restoration) array.push(new Date(1))
+        if (test_type_restoration) array.push(/xyz/)
+
+        await kev.set('key', array)
         const get = await kev.get('key')
-        expect(get).toStrictEqual([ 1, '2', new Date(3), !4 ])
+        expect(get).toEqual(array)
       })
 
       it('should store object values', async () => {
-        const obj = { num: 1, str: '2', date: new Date(3), bool: !4, arr: [ 1 ], obj: { a: 1 } }
-        await kev.set('key', obj)
+        const object = { num: 1, str: '2', bool: !4, arr: [ 1 ], obj: { a: 1 } }
+        if (test_undef_restoration) object.undef = undefined
+        if (test_type_restoration) object.date = new Date(1)
+        if (test_type_restoration) object.regexp = /xyz/
+
+        await kev.set('key', object)
         const get = await kev.get('key')
-        expect(get).toStrictEqual(obj)
-      })
-
-      it('should store non-truthy values', async () => {
-        const obj = { num: 0, str: '', bool: false, undef: undefined, nil: null }
-        await kev.set(obj)
-        const get = await kev.get([ 'num', 'str', 'bool', 'undef', 'nil' ])
-        expect(get).toStrictEqual(obj)
-      })
-
-      it('should store circular references', async () => {
-        const circular = { a: 1 }
-        circular.circular = circular
-        await kev.set('circular', circular)
-        const get = await kev.get('circular')
-        expect(get.circular.circular.a).toStrictEqual(1)
+        expect(get).toEqual(object)
       })
     })
 
@@ -197,10 +235,8 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
       it('should associate default parent tags', async () => {
         await kev.set('parent', 1)
         await kev2.set('child', 2)
-        await expect(kev2.tagged('t1').toArray())
-          .resolves.toStrictEqual([ 'child' ])
-        await expect(kev.tagged('t1').toArray().then((a) => a.sort()))
-          .resolves.toStrictEqual([ 'parent', 'child:child' ].sort())
+        await expect(kev2.tagged('t1').toArray()).resolves.toStrictEqual([ 'child' ])
+        return expect(kev.tagged('t1').toArray().then((a) => a.sort())).resolves.toStrictEqual([ 'parent', 'child:child' ].sort())
       })
 
       it('should apply parent tags to children', async () => {
@@ -229,15 +265,15 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
     })
 
     describe('ttl', () => {
-      const kev = new Kev({ url, prefix, ttl: '100ms' })
-      afterAll(() => kev.close())
+      const kev = new Kev({ url, prefix, compression, serializer, ttl: '1000ms' })
+      afterAll(() => kev.dropKeys().then(() => kev.close()))
 
       it('should expire keys after the default ttl period', async () => {
         await kev.set('key', 1)
         await expect(kev.get('key')).resolves.toStrictEqual(1)
-        await delay(50)
+        await delay(500)
         await expect(kev.get('key')).resolves.toStrictEqual(1)
-        await delay(100)
+        await delay(1000)
         await expect(kev.get('key')).resolves.toBeUndefined()
       })
 
@@ -258,8 +294,8 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
     })
 
     describe('tags', () => {
-      const kev = new Kev({ url, prefix, tags: [ 'tag' ] })
-      afterAll(() => kev.close())
+      const kev = new Kev({ url, prefix, compression, serializer, tags: [ 'tag' ] })
+      afterAll(() => kev.dropKeys().then(() => kev.close()))
 
       it('should add default tags to all entries', async () => {
         await kev.set('key', 1)
@@ -326,9 +362,20 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
     describe('compression', () => {
       if (compression) {
         it('should support retrieving raw (compressed) data if compression is on', async () => {
+          const fn = {
+            gzip: 'gzip',
+            deflate: 'deflate',
+            brotli: 'brotliCompress'
+          }[compression.type]
+          const packed = await kev.serializer.pack('string')
+          let compressed = await promisify(zlib[fn])(packed)
+          if (compression.encoding) {
+            compressed = compressed.toString(compression.encoding)
+          }
+
           await kev.set('key', 'string')
           const data = await kev.get('key', { decompress: false })
-          expect(data).toEqual('eJxTKi4pysxLVwIADQ0C3A==')
+          expect(data).toEqual(compressed)
         })
       } else {
         it('should not be affected by the decompress option if compression is not on', async () => {
@@ -340,10 +387,3 @@ const runTests = ({ plugin, url, compression = false }, { skip = false } = {}) =
     })
   })
 }
-
-runTests({ plugin: 'memory' })
-runTests({ plugin: 'memory', compression: true })
-runTests({ plugin: 'redis', url: REDIS_URL }, { skip: !REDIS_URL })
-runTests({ plugin: 'redis', url: REDIS_URL, compression: true }, { skip: !REDIS_URL })
-runTests({ plugin: 'mongo', url: MONGO_URL }, { skip: !MONGO_URL })
-runTests({ plugin: 'mongo', url: MONGO_URL, compression: true }, { skip: !MONGO_URL })

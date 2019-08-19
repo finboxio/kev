@@ -1,3 +1,4 @@
+const v8 = require('v8')
 const Redis = require('ioredis')
 const transform = require('stream-transform')
 
@@ -9,20 +10,20 @@ module.exports = class KevRedis {
   async get (keys = []) {
     const result = await this.client.mget(keys)
     return result.map((value) => {
-      if (value === null) return
-      return JSON.parse(value)
+      if (value) return unpack(value)
     })
   }
 
   async set (keyvalues = []) {
     const cmd = keyvalues.reduce((cmd, keyvalue) => {
-      const { key, value, ttl, tags = [] } = keyvalue
+      let { key, value, ttl, tags = [] } = keyvalue
       const expire = ttl ? [ 'px', ttl ] : []
 
+      value = pack(value)
       cmd = cmd.watch([ key, keyTagsKey(key) ])
         .multi()
         .get(key)
-        .set(key, JSON.stringify(value), ...expire)
+        .set(key, value, ...expire)
         .eval('redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))', 1, keyTagsKey(key))
         .unlink(keyTagsKey(key))
 
@@ -37,10 +38,11 @@ module.exports = class KevRedis {
     }, this.client.pipeline())
 
     const result = await cmd.exec()
+
     const output = result
       .filter(([ , result ]) => Array.isArray(result))
       .reduce((output, [ , result ]) => {
-        output.push(result[0] ? JSON.parse(result[0]) : undefined)
+        output.push(result[0] ? unpack(result[0]) : undefined)
         return output
       }, [])
 
@@ -61,7 +63,11 @@ module.exports = class KevRedis {
 
     const [ [ , values ], ...rest ] = result
     const deleted = rest.slice(0, keys.length)
-    return deleted.map((count, i) => count ? JSON.parse(values[i]) : undefined)
+    return deleted.map((count, i) => {
+      if (!count) return
+      if (!values[i]) return
+      return unpack(values[i])
+    })
   }
 
   async tags (keys = []) {
@@ -85,9 +91,7 @@ module.exports = class KevRedis {
       promises.push(until(stream, 'end'))
     })
 
-    await Promise.all(promises)
-
-    return results
+    return Promise.all(promises).then(() => results)
   }
 
   async dropTags (tags = []) {
@@ -149,3 +153,26 @@ const keyTagsKey = (key) => `${KEY_TAGS_PREFIX}:{${base64(key)}}`
 const keyTagKey = (key) => (tag) => `${tagKey(tag)}:{${base64(key)}}`
 const base64 = (str) => Buffer.from(str).toString('base64')
 const debase64 = (str) => Buffer.from(str, 'base64').toString('utf8')
+
+const pack = (value) => {
+  let vtype = 0
+  if (value instanceof Buffer) {
+    vtype = 1
+    value = value.toString('hex')
+  } else if (typeof value !== 'string') {
+    vtype = 2
+    value = v8.serialize(value).toString('hex')
+  }
+  return String(vtype) + value
+}
+
+const unpack = (value) => {
+  const vtype = parseInt(value[0])
+  value = value.slice(1)
+  if (vtype === 1) {
+    value = Buffer.from(value, 'hex')
+  } else if (vtype === 2) {
+    value = v8.deserialize(Buffer.from(value, 'hex'))
+  }
+  return value
+}
