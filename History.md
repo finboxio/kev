@@ -1,4 +1,9 @@
 
+1.2.1 / 2019-09-29
+==================
+
+  * Ensure mongo collection is created before writing
+
 1.2.0 / 2019-09-28
 ==================
 
