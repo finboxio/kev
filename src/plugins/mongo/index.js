@@ -1,22 +1,22 @@
 const { PassThrough } = require('stream')
 
-const { MongoClient } = require('mongodb')
+const { MongoClient } = require('@fnbx/mongodb')
 const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
 module.exports = class KevMongo {
-  constructor (url, { collection = 'kev', ...options } = {}) {
-    this.client = new MongoClient(url, { ...options, useNewUrlParser: true })
+  constructor (url, { client, db, collection = 'kev', ...options } = {}) {
+    this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
     this.collection = async () => {
       if (!this.client.isConnected()) {
         await this.client.connect()
-        const col = this.client.db().collection(collection)
+        const col = this.client.db(db).collection(collection)
 
         col.createIndex({ key: 1 }, { unique: true, background: true })
         col.createIndex({ tags: 1 }, { background: true })
         col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
       }
-      return this.client.db().collection(collection)
+      return this.client.db(db).collection(collection)
     }
   }
 

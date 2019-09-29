@@ -17,6 +17,8 @@ module.exports = class Kev {
     this.default_tags = tags
     this.compression = compression
     this.serializer = {}
+    const { pack, unpack } = serializer || {}
+    let resurrector
     switch (serializer) {
       case 'v8':
         this.serializer.pack = v8.serialize.bind(v8)
@@ -27,7 +29,7 @@ module.exports = class Kev {
         this.serializer.unpack = (data) => data && JSON.parse(data)
         break
       case 'resurrect':
-        const resurrector = new Resurrect({ prefix: '__kev#', cleanup: true })
+        resurrector = new Resurrect({ prefix: '__kev#', cleanup: true })
         this.serializer.pack = resurrector.stringify.bind(resurrector)
         this.serializer.unpack = resurrector.resurrect.bind(resurrector)
         break
@@ -36,7 +38,6 @@ module.exports = class Kev {
         this.serializer.unpack = noop
         break
       default:
-        const { pack, unpack } = serializer || {}
         this.serializer.pack = pack || this.store.pack || noop
         this.serializer.unpack = unpack || this.store.unpack || noop
     }
