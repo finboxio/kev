@@ -6,17 +6,28 @@ const transform = require('stream-transform')
 
 module.exports = class KevMongo {
   constructor (url, { client, db, collection = 'kev', ...options } = {}) {
-    this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
+    this._collection_exists = false
+    this.client = client || new MongoClient(url, options)
     this.collection = async () => {
       if (!this.client.isConnected()) {
         await this.client.connect()
-        const col = this.client.db(db).collection(collection)
-
-        col.createIndex({ key: 1 }, { unique: true, background: true })
-        col.createIndex({ tags: 1 }, { background: true })
-        col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
       }
-      return this.client.db(db).collection(collection)
+
+      const database = this.client.db(db)
+      if (!this._collection_exists) {
+        const collections = await database.listCollections().toArray()
+        if (!collections.map((c) => c.name).includes(collection)) {
+          await database.createCollection(collection)
+        }
+        this._collection_exists = true
+      }
+
+      const col = database.collection(collection)
+      col.createIndex({ key: 1 }, { unique: true, background: true })
+      col.createIndex({ tags: 1 }, { background: true })
+      col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
+
+      return col
     }
   }
 
