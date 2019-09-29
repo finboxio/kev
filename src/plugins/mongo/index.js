@@ -7,7 +7,7 @@ const transform = require('stream-transform')
 module.exports = class KevMongo {
   constructor (url, { client, db, collection = 'kev', ...options } = {}) {
     this._collection_exists = false
-    this.client = client || new MongoClient(url, options)
+    this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
     this.collection = async () => {
       if (!this.client.isConnected()) {
         await this.client.connect()
