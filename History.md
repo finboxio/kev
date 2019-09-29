@@ -1,4 +1,9 @@
 
+1.2.0 / 2019-09-28
+==================
+
+  * Update mongo driver and allow user to provide mongo client
+
 1.1.0 / 2019-08-18
 ==================
 
