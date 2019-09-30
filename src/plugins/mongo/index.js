@@ -17,6 +17,7 @@ module.exports = class KevMongo {
 
       const database = this.client.db(db)
       if (!this._collection_verified) {
+        this._collection_verified = true
         const collections = await database.listCollections().toArray()
         if (!collections.map((c) => c.name).includes(collection)) {
           await database.createCollection(collection)
@@ -29,7 +30,6 @@ module.exports = class KevMongo {
           .catch((e) => process.emitWarning(e.message, 'KevIndexWarning'))
         col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
           .catch((e) => process.emitWarning(e.message, 'KevIndexWarning'))
-        this._collection_verified = true
       }
 
       return database.collection(collection)
