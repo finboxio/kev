@@ -22,13 +22,13 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
     /* json.stringified data does not maintain type info */
     ![ 'json' ].includes(serializer) &&
     /* redis will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongo:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   const test_undef_restoration = true &&
     /* json.stringified data does not maintain undefined info */
     ![ 'json' ].includes(serializer) &&
     /* redis/mongo will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongo:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   describe(`${url} (compression=${compression && compression.type}, serializer=${serializer})`, () => {
     const prefix = `test-${uid()}`

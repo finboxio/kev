@@ -6,29 +6,35 @@ const transform = require('stream-transform')
 
 module.exports = class KevMongo {
   constructor (url, { client, db, collection = 'kev', ...options } = {}) {
-    this._collection_exists = false
+    this._collection_verified = false
     this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
+
+    this._connect = this.client.isConnected() ? Promise.resolve(this.client) : this.client.connect()
     this.collection = async () => {
       if (!this.client.isConnected()) {
-        await this.client.connect()
+        await this._connect
       }
 
       const database = this.client.db(db)
-      if (!this._collection_exists) {
+      if (!this._collection_verified) {
         const collections = await database.listCollections().toArray()
         if (!collections.map((c) => c.name).includes(collection)) {
           await database.createCollection(collection)
+            .catch((e) => process.emitWarning(e.message, 'KevCollectionWarning'))
         }
-        this._collection_exists = true
+        const col = database.collection(collection)
+        col.createIndex({ key: 1 }, { unique: true, background: true })
+          .catch((e) => process.emitWarning(e.message, 'KevIndexWarning'))
+        col.createIndex({ tags: 1 }, { background: true })
+          .catch((e) => process.emitWarning(e.message, 'KevIndexWarning'))
+        col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
+          .catch((e) => process.emitWarning(e.message, 'KevIndexWarning'))
+        this._collection_verified = true
       }
 
-      const col = database.collection(collection)
-      col.createIndex({ key: 1 }, { unique: true, background: true })
-      col.createIndex({ tags: 1 }, { background: true })
-      col.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0, background: true })
-
-      return col
+      return database.collection(collection)
     }
+    this.collection()
   }
 
   async get (keys = [], session) {
@@ -57,30 +63,41 @@ module.exports = class KevMongo {
     const col = await this.collection()
 
     let previous
-    await this.client.withSession(async (session) => {
-      await session.withTransaction(async (session) => {
-        previous = await this.get(keyvalues.map((kv) => kv.key), session)
+    const execute = async (session) => {
+      previous = await this.get(keyvalues.map((kv) => kv.key), session)
 
-        const operations = keyvalues.map((kv) => {
-          const { key, value, ttl, tags = [] } = kv
-          const op = {
-            replaceOne: {
-              filter: { key },
-              replacement: { key, value, tags },
-              upsert: true
-            }
+      const operations = keyvalues.map((kv) => {
+        const { key, value, ttl, tags = [] } = kv
+        const op = {
+          replaceOne: {
+            filter: { key },
+            replacement: { key, value, tags },
+            upsert: true
           }
+        }
 
-          if (ttl) {
-            op.replaceOne.replacement.expires_at = new Date(now + ttl)
-          }
+        if (ttl) {
+          op.replaceOne.replacement.expires_at = new Date(now + ttl)
+        }
 
-          return op
-        })
-
-        await col.bulkWrite(operations, { session, ordered: false })
+        return op
       })
-    })
+
+      await col.bulkWrite(operations, { session, ordered: false })
+    }
+
+    await this.client
+      .withSession((session) => session.withTransaction(execute))
+      .catch((err) => {
+        err = err.originalError || err
+        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+          emitTransactionWarning(this.client.s.url)
+          return execute()
+        } else {
+          console.error('WTF', err)
+          throw err
+        }
+      })
 
     return previous
   }
@@ -89,12 +106,23 @@ module.exports = class KevMongo {
     const col = await this.collection()
 
     let previous
-    await this.client.withSession(async (session) => {
-      await session.withTransaction(async (session) => {
-        previous = await this.get(keys, session)
-        await col.deleteMany({ key: { $in: keys } }, { session })
+    const execute = async (session) => {
+      previous = await this.get(keys, session)
+      await col.deleteMany({ key: { $in: keys } }, { session })
+    }
+
+    await this.client
+      .withSession((session) => session.withTransaction(execute))
+      .catch((err) => {
+        err = err.originalError || err
+        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+          emitTransactionWarning(this.client.s.url)
+          return execute()
+        } else {
+          console.error('WTF', err)
+          throw err
+        }
       })
-    })
 
     return previous
   }
@@ -117,13 +145,24 @@ module.exports = class KevMongo {
     const col = await this.collection()
 
     let response
-    await this.client.withSession(async (session) => {
-      await session.withTransaction(async (session) => {
-        response = await Promise.all(globs.map((glob) => {
-          return col.deleteMany({ key: { $regex: globber(glob) } }, { session })
-        }))
+    const execute = async (session) => {
+      response = await Promise.all(globs.map((glob) => {
+        return col.deleteMany({ key: { $regex: globber(glob) } }, { session })
+      }))
+    }
+
+    await this.client
+      .withSession((session) => session.withTransaction(execute))
+      .catch((err) => {
+        err = err.originalError || err
+        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+          emitTransactionWarning(this.client.s.url)
+          return execute()
+        } else {
+          console.error('WTF', err)
+          throw err
+        }
       })
-    })
 
     return response.map(({ result }) => result.n)
   }
@@ -132,13 +171,24 @@ module.exports = class KevMongo {
     const col = await this.collection()
 
     let response
-    await this.client.withSession(async (session) => {
-      await session.withTransaction(async (session) => {
-        response = await Promise.all(tags.map((tag) => {
-          return col.deleteMany({ tags: tag })
-        }))
+    const execute = async (session) => {
+      response = await Promise.all(tags.map((tag) => {
+        return col.deleteMany({ tags: tag })
+      }))
+    }
+
+    await this.client
+      .withSession((session) => session.withTransaction(execute))
+      .catch((err) => {
+        err = err.originalError || err
+        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+          emitTransactionWarning(this.client.s.url)
+          return execute()
+        } else {
+          console.error('WTF', err)
+          throw err
+        }
       })
-    })
 
     return response.map(({ result }) => result.n)
   }
@@ -172,5 +222,13 @@ module.exports = class KevMongo {
       if (doc.expires_at && doc.expires_at < now) return null
       return doc.key
     }))
+  }
+}
+
+const warned = {}
+const emitTransactionWarning = function (url) {
+  if (!warned[url]) {
+    warned[url] = true
+    process.emitWarning(`Kev mongo server at ${url} does not support transactions`)
   }
 }
