@@ -86,18 +86,22 @@ module.exports = class KevMongo {
       await col.bulkWrite(operations, { session, ordered: false })
     }
 
-    await this.client
-      .withSession((session) => session.withTransaction(execute))
-      .catch((err) => {
-        err = err.originalError || err
-        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-          emitTransactionWarning(this.client.s.url)
-          return execute()
-        } else {
-          console.error('WTF', err)
-          throw err
-        }
-      })
+    if (this.client.topology.hasSessionSupport()) {
+      await this.client
+        .withSession((session) => session.withTransaction(execute))
+        .catch((err) => {
+          err = err.originalError || err
+          if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+            emitTransactionWarning(this.client.s.url)
+            return execute()
+          } else {
+            throw err
+          }
+        })
+    } else {
+      emitTransactionWarning(this.client.s.url)
+      await execute()
+    }
 
     return previous
   }
@@ -111,18 +115,22 @@ module.exports = class KevMongo {
       await col.deleteMany({ key: { $in: keys } }, { session })
     }
 
-    await this.client
-      .withSession((session) => session.withTransaction(execute))
-      .catch((err) => {
-        err = err.originalError || err
-        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-          emitTransactionWarning(this.client.s.url)
-          return execute()
-        } else {
-          console.error('WTF', err)
-          throw err
-        }
-      })
+    if (this.client.topology.hasSessionSupport()) {
+      await this.client
+        .withSession((session) => session.withTransaction(execute))
+        .catch((err) => {
+          err = err.originalError || err
+          if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+            emitTransactionWarning(this.client.s.url)
+            return execute()
+          } else {
+            throw err
+          }
+        })
+    } else {
+      emitTransactionWarning(this.client.s.url)
+      await execute()
+    }
 
     return previous
   }
@@ -151,18 +159,22 @@ module.exports = class KevMongo {
       }))
     }
 
-    await this.client
-      .withSession((session) => session.withTransaction(execute))
-      .catch((err) => {
-        err = err.originalError || err
-        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-          emitTransactionWarning(this.client.s.url)
-          return execute()
-        } else {
-          console.error('WTF', err)
-          throw err
-        }
-      })
+    if (this.client.topology.hasSessionSupport()) {
+      await this.client
+        .withSession((session) => session.withTransaction(execute))
+        .catch((err) => {
+          err = err.originalError || err
+          if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+            emitTransactionWarning(this.client.s.url)
+            return execute()
+          } else {
+            throw err
+          }
+        })
+    } else {
+      emitTransactionWarning(this.client.s.url)
+      await execute()
+    }
 
     return response.map(({ result }) => result.n)
   }
@@ -177,18 +189,22 @@ module.exports = class KevMongo {
       }))
     }
 
-    await this.client
-      .withSession((session) => session.withTransaction(execute))
-      .catch((err) => {
-        err = err.originalError || err
-        if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-          emitTransactionWarning(this.client.s.url)
-          return execute()
-        } else {
-          console.error('WTF', err)
-          throw err
-        }
-      })
+    if (this.client.topology.hasSessionSupport()) {
+      await this.client
+        .withSession((session) => session.withTransaction(execute))
+        .catch((err) => {
+          err = err.originalError || err
+          if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
+            emitTransactionWarning(this.client.s.url)
+            return execute()
+          } else {
+            throw err
+          }
+        })
+    } else {
+      emitTransactionWarning(this.client.s.url)
+      await execute()
+    }
 
     return response.map(({ result }) => result.n)
   }
