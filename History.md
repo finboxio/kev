@@ -1,4 +1,10 @@
 
+1.3.0 / 2019-09-29
+==================
+
+  * Add tests for mongo replset
+  * Support for mongodb when transactions are not available
+
 1.2.2 / 2019-09-29
 ==================
 

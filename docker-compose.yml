@@ -35,7 +35,7 @@ services:
     environment:
       MONGO_STORAGE_ENGINE: ephemeralForTest
   mongo-init:
-    image: finboxio/mongo-init:dev
+    image: finboxio/mongo-init:v0.2.0
     volumes:
       - mongo-init:/opt/mongo-init
 
@@ -51,6 +51,6 @@ services:
       MONGO_REPLSET: repl
       MONGO_ROLE: primary
   mongo-init:
-    image: finboxio/mongo-init:dev
+    image: finboxio/mongo-init:v0.2.0
     volumes:
       - mongo-init:/opt/mongo-init
