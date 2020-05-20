@@ -89,6 +89,7 @@ module.exports = class Kev {
     const check_rtl = rtl !== null && rtl !== undefined
     const rtl_pass = !check_rtl || (result.e || Infinity) >= (Date.now() + ms(String(rtl || 0)))
 
+    if (+ttl === 0) ttl = '0ms'
     if (ttl > 0 && ttl < 1) ttl = (result.e - result.s) * ttl
     const check_ttl = ttl !== null && ttl !== undefined
     const ttl_pass = !check_ttl || ((ttl !== Infinity) && (result.s + ms(String(ttl || this.ttl || 0)) >= Date.now()))
@@ -116,7 +117,7 @@ module.exports = class Kev {
     }
 
     const previous = await this.store.set.load({ key, value, ttl, tags })
-    return this.unpack(previous && previous.v)
+    return previous && this.unpack(previous.v)
   }
 
   async setMany (kvobj, { ttl, tags = [] } = {}) {
@@ -133,7 +134,7 @@ module.exports = class Kev {
     key = this.prefixed(key)
 
     const previous = await this.store.del.load(key)
-    return this.unpack(previous && previous.v)
+    return previous && this.unpack(previous.v)
   }
 
   async delMany (keys) {
@@ -294,10 +295,10 @@ module.exports = class Kev {
 }
 
 const prefixedTags = (prefixes, tags) => {
-  return prefixes.reduce((prefixed, prefix, i, prefixes) => {
+  return prefixes.length ? prefixes.reduce((prefixed, prefix, i, prefixes) => {
     prefixed.push(...tags.map((tag) => prefixes.slice(0, i + 1).concat(tag).join(':')))
     return prefixed
-  }, [])
+  }, []) : [ ...tags ]
 }
 
 const zip = (keys, values) => {
