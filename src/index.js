@@ -76,22 +76,28 @@ module.exports = class Kev {
 
   /** Get */
 
-  // Don't give me anything more than 20m old (saved + ttl)
-  // Don't give me anything that will expire in the next 20m (exp - ttl)
-  async get (key, { decompress = true, ttl } = {}) {
+  // TTL: Don't give me anything older than x
+  // RTL: Don't give me anything that will expire within x
+  async get (key, { decompress = true, ttl, rtl } = {}) {
     if (Array.isArray(key)) return this.getMany(key)
     key = this.prefixed(key)
 
     const result = await this.store.get.load(key)
+    if (!result) return
 
-    const check_exp = ttl !== null && ttl !== undefined
-    if (!check_exp || (check_exp && result && result.e >= (Date.now() + ms(String(ttl || this.ttl || 0))))) {
-      return this.unpack(result && result.v, { decompress })
-    }
+    if (rtl > 0 && rtl < 1) rtl = (result.e - result.s) * rtl
+    const check_rtl = rtl !== null && rtl !== undefined
+    const rtl_pass = !check_rtl || (result.e || Infinity) >= (Date.now() + ms(String(rtl || 0)))
+
+    if (ttl > 0 && ttl < 1) ttl = (result.e - result.s) * ttl
+    const check_ttl = ttl !== null && ttl !== undefined
+    const ttl_pass = !check_ttl || ((ttl !== Infinity) && (result.s + ms(String(ttl || this.ttl || 0)) >= Date.now()))
+
+    if (rtl_pass && ttl_pass) return this.unpack(result.v, { decompress })
   }
 
-  async getMany (keys) {
-    const values = await Promise.all(keys.map((k) => this.get(k)))
+  async getMany (keys, { decompress, ttl, rtl } = {}) {
+    const values = await Promise.all(keys.map((k) => this.get(k, { decompress, ttl, rtl })))
     return zip(keys, values)
   }
 
