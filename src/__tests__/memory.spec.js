@@ -10,7 +10,7 @@ describe('max memory', () => {
   const kev = new Kev({
     url: 'memory://lru',
     prefix: `test-${uid()}`,
-    memory: { max_memory: '36B' }
+    memory: { max_memory: '124B' }
   })
 
   beforeEach(() => kev.dropKeys())

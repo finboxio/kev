@@ -76,12 +76,18 @@ module.exports = class Kev {
 
   /** Get */
 
-  async get (key, { decompress = true } = {}) {
+  // Don't give me anything more than 20m old (saved + ttl)
+  // Don't give me anything that will expire in the next 20m (exp - ttl)
+  async get (key, { decompress = true, ttl } = {}) {
     if (Array.isArray(key)) return this.getMany(key)
-
     key = this.prefixed(key)
+
     const result = await this.store.get.load(key)
-    return this.unpack(result, { decompress })
+
+    const check_exp = ttl !== null && ttl !== undefined
+    if (!check_exp || (check_exp && result && result.e >= (Date.now() + ms(String(ttl || this.ttl || 0))))) {
+      return this.unpack(result && result.v, { decompress })
+    }
   }
 
   async getMany (keys) {
@@ -97,10 +103,14 @@ module.exports = class Kev {
     key = this.prefixed(key)
     ttl = ms(String(ttl || this.ttl || 0))
     tags = prefixedTags(this.prefix, tags.concat(this.default_tags))
-    value = await this.pack(value)
+    value = {
+      s: Date.now(),
+      e: Date.now() + ttl,
+      v: await this.pack(value)
+    }
 
     const previous = await this.store.set.load({ key, value, ttl, tags })
-    return this.unpack(previous)
+    return this.unpack(previous && previous.v)
   }
 
   async setMany (kvobj, { ttl, tags = [] } = {}) {
@@ -117,7 +127,7 @@ module.exports = class Kev {
     key = this.prefixed(key)
 
     const previous = await this.store.del.load(key)
-    return this.unpack(previous)
+    return this.unpack(previous && previous.v)
   }
 
   async delMany (keys) {

@@ -25,16 +25,16 @@
   "devDependencies": {
     "delay": "4.3.0",
     "envvar": "2.0.0",
-    "eslint": "6.4.0",
-    "eslint-config-standard": "14.1.0",
-    "eslint-plugin-import": "2.18.2",
-    "eslint-plugin-jest": "22.17.0",
-    "eslint-plugin-node": "10.0.0",
+    "eslint": "7.0.0",
+    "eslint-config-standard": "14.1.1",
+    "eslint-plugin-import": "2.20.2",
+    "eslint-plugin-jest": "23.13.1",
+    "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "4.2.1",
     "eslint-plugin-standard": "4.0.1",
-    "husky": "3.0.7",
-    "jest": "24.9.0",
-    "uid": "0.0.2"
+    "husky": "4.2.5",
+    "jest": "26.0.1",
+    "uid": "1.0.0"
   },
   "repository": {
     "type": "git",
@@ -50,14 +50,15 @@
   "dependencies": {
     "@fnbx/mongodb": "3.3.2",
     "bytes": "3.1.0",
-    "dataloader": "1.4.0",
+    "dataloader": "2.0.0",
     "glob-to-regexp": "0.4.1",
-    "into-stream": "5.1.0",
-    "ioredis": "4.14.1",
+    "into-stream": "5.1.1",
+    "ioredis": "4.17.1",
     "lru-cache": "5.1.1",
     "ms": "2.1.2",
+    "redis-stream": "0.1.0",
     "resurrect-js": "1.0.1",
     "stream-to-array": "2.3.0",
-    "stream-transform": "2.0.1"
+    "stream-transform": "2.0.2"
   }
 }

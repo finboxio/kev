@@ -47,8 +47,8 @@ module.exports = class KevMongo {
 
     const mapped = docs.reduce((map, doc) => {
       if (doc.expires_at && doc.expires_at < now) return map
-      if (doc.value && doc.value._bsontype === 'Binary') {
-        map[doc.key] = doc.value.buffer
+      if (doc.value && doc.value.v && doc.value.v._bsontype === 'Binary') {
+        map[doc.key] = { ...doc.value, v: doc.value.v.buffer }
       } else {
         map[doc.key] = doc.value
       }

@@ -277,6 +277,13 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
         await expect(kev.get('key')).resolves.toBeUndefined()
       })
 
+      it('should support custom ttl on retrieval', async () => {
+        await kev.set('key', 1)
+        await expect(kev.get('key', { ttl: '600ms' })).resolves.toStrictEqual(1)
+        await delay(500)
+        await expect(kev.get('key', { ttl: '600ms' })).resolves.toBeUndefined()
+      })
+
       it('should expire keys after a custom ttl period', async () => {
         await kev.set('key', 1, { ttl: '1000ms' })
         await expect(kev.get('key')).resolves.toStrictEqual(1)

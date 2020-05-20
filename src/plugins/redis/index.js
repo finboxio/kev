@@ -1,10 +1,30 @@
 const v8 = require('v8')
+const { URL } = require('url')
 const Redis = require('ioredis')
+const Stream = require('redis-stream')
 const transform = require('stream-transform')
+
+const STATICS = {
+  watch: 'WATCH',
+  multi: 'MULTI',
+  echo: 'ECHO',
+  next: 'NEXT',
+  get: 'GET',
+  set: 'SET',
+  eval: 'EVAL',
+  unlink: 'UNLINK',
+  sadd: 'sadd',
+  exec: 'exec',
+  px: 'px',
+  truthy: '1',
+  script: 'redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))'
+}
 
 module.exports = class KevRedis {
   constructor (url, options = {}) {
+    const parsed = new URL(url)
     this.client = new Redis(url, options)
+    this.stream = new Stream(parsed.port, parsed.hostname)
   }
 
   async get (keys = []) {
@@ -15,38 +35,55 @@ module.exports = class KevRedis {
   }
 
   async set (keyvalues = []) {
-    const cmd = keyvalues.reduce((cmd, keyvalue) => {
+    const results = []
+    const stream = this.stream.stream()
+
+    let collect = false
+    stream.on('data', (data) => {
+      if (data === STATICS.next) collect = true
+      else if (collect) {
+        collect = false
+        if (data !== '-1') {
+          results.push(unpack(data))
+        } else {
+          results.push(undefined)
+        }
+      }
+    })
+
+    keyvalues.forEach((keyvalue) => {
       let { key, value, ttl, tags = [] } = keyvalue
-      const expire = ttl ? [ 'px', ttl ] : []
+      const expire = ttl ? [ STATICS.px, ttl ] : []
 
       value = pack(value)
-      cmd = cmd.watch([ key, keyTagsKey(key) ])
-        .multi()
-        .get(key)
-        .set(key, value, ...expire)
-        .eval('redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))', 1, keyTagsKey(key))
-        .unlink(keyTagsKey(key))
+
+      const key_tags = keyTagsKey(key)
+      const cmd = [
+        [ STATICS.watch, key, key_tags ],
+        [ STATICS.multi ],
+        [ STATICS.echo, STATICS.next ],
+        [ STATICS.get, key ],
+        [ STATICS.set, key, value, ...expire ],
+        [ STATICS.eval, STATICS.script, 1, key_tags ],
+        [ STATICS.unlink, key_tags ]
+      ]
 
       if (tags.length) {
         const tag_keys = tags.map(keyTagKey(key))
-        cmd = tag_keys
-          .reduce((cmd, tag_key) => cmd.set(tag_key, '1', ...expire), cmd)
-          .sadd(keyTagsKey(key), tag_keys)
+        tag_keys.forEach((tag) => cmd.push([ STATICS.set, tag, STATICS.truthy, ...expire ]))
+        cmd.push([ STATICS.sadd, key_tags, ...tag_keys ])
       }
 
-      return cmd.exec()
-    }, this.client.pipeline())
+      cmd.push([ STATICS.exec ])
 
-    const result = await cmd.exec()
+      cmd.map((c) => Stream.parse(c)).forEach((c) => stream.redis.write(c))
+    })
 
-    const output = result
-      .filter(([ , result ]) => Array.isArray(result))
-      .reduce((output, [ , result ]) => {
-        output.push(result[0] ? unpack(result[0]) : undefined)
-        return output
-      }, [])
-
-    return output
+    return new Promise((resolve, reject) => {
+      stream.on('close', () => { resolve(results) })
+      stream.on('error', (e) => { reject(e) })
+      stream.end()
+    })
   }
 
   async del (keys = []) {
