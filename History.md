@@ -1,4 +1,9 @@
 
+2.1.2 / 2020-05-20
+==================
+
+  * Expose plugin and switch to native mongo driver
+
 2.1.1 / 2020-05-19
 ==================
 
