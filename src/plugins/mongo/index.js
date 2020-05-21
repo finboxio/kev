@@ -1,6 +1,6 @@
 const { PassThrough } = require('stream')
 
-const { MongoClient } = require('@fnbx/mongodb')
+const { MongoClient } = require('mongodb')
 const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 

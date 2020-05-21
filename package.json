@@ -48,13 +48,13 @@
     ]
   },
   "dependencies": {
-    "@fnbx/mongodb": "3.3.2",
     "bytes": "3.1.0",
     "dataloader": "2.0.0",
     "glob-to-regexp": "0.4.1",
     "into-stream": "5.1.1",
     "ioredis": "4.17.1",
     "lru-cache": "5.1.1",
+    "mongodb": "3.5.7",
     "ms": "2.1.2",
     "redis-stream": "0.1.0",
     "resurrect-js": "1.0.1",
