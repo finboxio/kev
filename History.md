@@ -1,4 +1,9 @@
 
+2.1.4 / 2020-05-28
+==================
+
+  * Do not call connect on connecting mongo client
+
 2.1.3 / 2020-05-27
 ==================
 
