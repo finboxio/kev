@@ -18,9 +18,10 @@ module.exports = class KevMemory {
       max = Bytes.parse(max_memory)
     }
 
-    storage[url] = storage[url] || new LRU({
+    this.tagged_keys = tagged_keys[url] = tagged_keys[url] || {}
+    this.storage = storage[url] = storage[url] || new LRU({
       max,
-      length: ({ value, tags = [] }, key) => {
+      length ({ value, tags = [] }, key) {
         const keylen = Buffer.from(key).length
         const taglen = tags.reduce((sum, tag) => {
           return sum + Buffer.concat([
@@ -37,12 +38,14 @@ module.exports = class KevMemory {
 
         const len = keylen + taglen + vallen
         return len
+      },
+      dispose (key, { value, tags = [] }) {
+        for (const tag of tags) {
+          const keys = tagged_keys[url][tag]
+          if (keys) delete keys[key]
+        }
       }
     })
-
-    tagged_keys[url] = tagged_keys[url] || {}
-    this.storage = storage[url]
-    this.tagged_keys = tagged_keys[url]
   }
 
   async get (keys = []) {
@@ -52,13 +55,15 @@ module.exports = class KevMemory {
   }
 
   async set (keyvalues = []) {
+    const now = Date.now()
     return keyvalues.map(({ key, value, ttl, tags = [] }) => {
       const { value: original } = this.storage.peek(key) || {}
       this.del([ key ])
       this.storage.set(key, { value, tags }, ttl)
+      const exp = ttl > 0 ? (now + ttl) : 0
       tags.forEach((tag) => {
-        this.tagged_keys[tag] = this.tagged_keys[tag] || new LRU({ max: 0 })
-        this.tagged_keys[tag].set(key, true, ttl)
+        this.tagged_keys[tag] = this.tagged_keys[tag] || {}
+        this.tagged_keys[tag][key] = exp
       })
       return original
     })
@@ -72,9 +77,9 @@ module.exports = class KevMemory {
       const { value, tags = [] } = stored
       this.storage.del(key)
       tags.forEach((tag) => {
-        this.tagged_keys[tag].del(key)
-        this.tagged_keys[tag].prune()
-        if (!this.tagged_keys[tag].itemCount) {
+        const cache = this.tagged_keys[tag]
+        if (cache) delete cache[key]
+        if (!Object.keys(this.tagged_keys[tag])) {
           delete this.tagged_keys[tag]
         }
       })
@@ -101,15 +106,18 @@ module.exports = class KevMemory {
     return Promise.all(tags
       .map((tag) => this.tagged_keys[tag])
       .filter(Boolean)
-      .map((cache) => cache.keys())
+      .map((cache) => Object.keys(cache))
       .map((deletes) => this.del(deletes).then((deleted) => deleted.length)))
   }
 
   tagged (tag) {
     if (!this.tagged_keys[tag]) return stream.object([])
 
-    this.tagged_keys[tag].prune()
-    const matches = this.tagged_keys[tag].keys()
+    const cache = this.tagged_keys[tag]
+    const exp = Object.keys(cache).filter((k) => cache[k] > 0 && cache[k] < Date.now())
+    for (const k of exp) delete cache[k]
+
+    const matches = Object.keys(cache)
     return stream.object(matches)
   }
 
