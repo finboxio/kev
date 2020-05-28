@@ -12,6 +12,7 @@ services:
     command: test
     volumes:
       - ./src:/usr/src/kev/src
+      - ./benchmarks:/usr/src/kev/benchmarks
     links:
       - redis
       - mongo_standalone

@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "lint": "eslint src",
-    "performance": "node src/__tests__/performance.js",
+    "performance": "node benchmarks/performance.js",
     "precommit": "npm run lint",
     "prepush": "npm run dc:test",
     "dc:destroy": "docker-compose $(make dc.files) down -v --remove-orphans",
