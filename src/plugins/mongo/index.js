@@ -9,7 +9,7 @@ module.exports = class KevMongo {
     this._collection_verified = false
     this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
 
-    this._connect = Promise.resolve(this.client).then((client) => client.isConnected() ? client.connect() : client)
+    this._connect = Promise.resolve(this.client).then((client) => !client.isConnected() ? client.connect() : client)
 
     this.collection = async () => {
       if (!this.client.isConnected()) {
