@@ -12,11 +12,13 @@ module.exports = class KevMongo {
     this._connect = Promise.resolve(this.client).then((client) => !client.isConnected() ? client.connect() : client)
 
     this.collection = async () => {
-      if (!this.client.isConnected()) {
+      const client = await this.client
+
+      if (!client.isConnected()) {
         await this._connect
       }
 
-      const database = this.client.db(db)
+      const database = client.db(db)
       if (!this._collection_verified) {
         this._collection_verified = true
         const collections = await database.listCollections().toArray()
@@ -61,7 +63,7 @@ module.exports = class KevMongo {
 
   async set (keyvalues = []) {
     const now = Date.now()
-    const col = await this.collection()
+    const [ client, col ] = await Promise.all([ this.client, this.collection() ])
 
     let previous
     const execute = async (session) => {
@@ -87,20 +89,20 @@ module.exports = class KevMongo {
       await col.bulkWrite(operations, { session, ordered: false })
     }
 
-    if (this.client.topology.hasSessionSupport()) {
-      await this.client
+    if (client.topology.hasSessionSupport()) {
+      await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
           err = err.originalError || err
           if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-            emitTransactionWarning(this.client.s.url)
+            emitTransactionWarning(client.s.url)
             return execute()
           } else {
             throw err
           }
         })
     } else {
-      emitTransactionWarning(this.client.s.url)
+      emitTransactionWarning(client.s.url)
       await execute()
     }
 
@@ -108,7 +110,7 @@ module.exports = class KevMongo {
   }
 
   async del (keys = []) {
-    const col = await this.collection()
+    const [ client, col ] = await Promise.all([ this.client, this.collection() ])
 
     let previous
     const execute = async (session) => {
@@ -116,20 +118,20 @@ module.exports = class KevMongo {
       await col.deleteMany({ key: { $in: keys } }, { session })
     }
 
-    if (this.client.topology.hasSessionSupport()) {
-      await this.client
+    if (client.topology.hasSessionSupport()) {
+      await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
           err = err.originalError || err
           if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-            emitTransactionWarning(this.client.s.url)
+            emitTransactionWarning(client.s.url)
             return execute()
           } else {
             throw err
           }
         })
     } else {
-      emitTransactionWarning(this.client.s.url)
+      emitTransactionWarning(client.s.url)
       await execute()
     }
 
@@ -151,7 +153,7 @@ module.exports = class KevMongo {
   }
 
   async dropKeys (globs = []) {
-    const col = await this.collection()
+    const [ client, col ] = await Promise.all([ this.client, this.collection() ])
 
     let response
     const execute = async (session) => {
@@ -160,20 +162,20 @@ module.exports = class KevMongo {
       }))
     }
 
-    if (this.client.topology.hasSessionSupport()) {
-      await this.client
+    if (client.topology.hasSessionSupport()) {
+      await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
           err = err.originalError || err
           if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-            emitTransactionWarning(this.client.s.url)
+            emitTransactionWarning(client.s.url)
             return execute()
           } else {
             throw err
           }
         })
     } else {
-      emitTransactionWarning(this.client.s.url)
+      emitTransactionWarning(client.s.url)
       await execute()
     }
 
@@ -181,7 +183,7 @@ module.exports = class KevMongo {
   }
 
   async dropTags (tags = []) {
-    const col = await this.collection()
+    const [ client, col ] = await Promise.all([ this.client, this.collection() ])
 
     let response
     const execute = async (session) => {
@@ -190,20 +192,20 @@ module.exports = class KevMongo {
       }))
     }
 
-    if (this.client.topology.hasSessionSupport()) {
-      await this.client
+    if (client.topology.hasSessionSupport()) {
+      await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
           err = err.originalError || err
           if (err.code === 20 && err.message.startsWith('Transaction numbers')) {
-            emitTransactionWarning(this.client.s.url)
+            emitTransactionWarning(client.s.url)
             return execute()
           } else {
             throw err
           }
         })
     } else {
-      emitTransactionWarning(this.client.s.url)
+      emitTransactionWarning(client.s.url)
       await execute()
     }
 
@@ -219,7 +221,7 @@ module.exports = class KevMongo {
   }
 
   async close () {
-    return this.client.close()
+    return Promise.resolve(this.client).then((c) => c.close())
   }
 
   _keyStream (query) {
