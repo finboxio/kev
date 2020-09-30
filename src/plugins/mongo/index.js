@@ -5,7 +5,7 @@ const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
 module.exports = class KevMongo {
-  constructor (url, { client, db, collection = 'kev', use_transactions = true ...options } = {}) {
+  constructor (url, { client, db, collection = 'kev', use_transactions = true, ...options } = {}) {
     this._collection_verified = false
     this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
 
