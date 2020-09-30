@@ -5,12 +5,13 @@ const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
 module.exports = class KevMongo {
-  constructor (url, { client, db, collection = 'kev', ...options } = {}) {
+  constructor (url, { client, db, collection = 'kev', use_transactions = true ...options } = {}) {
     this._collection_verified = false
     this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
 
     this._connect = Promise.resolve(this.client).then((client) => !client.isConnected() ? client.connect() : client)
 
+    this.transactions = use_transactions
     this.collection = async () => {
       const client = await this.client
 
@@ -89,7 +90,7 @@ module.exports = class KevMongo {
       await col.bulkWrite(operations, { session, ordered: false })
     }
 
-    if (client.topology.hasSessionSupport()) {
+    if (this.transactions && client.topology.hasSessionSupport()) {
       await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
@@ -118,7 +119,7 @@ module.exports = class KevMongo {
       await col.deleteMany({ key: { $in: keys } }, { session })
     }
 
-    if (client.topology.hasSessionSupport()) {
+    if (this.transactions && client.topology.hasSessionSupport()) {
       await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
@@ -162,7 +163,7 @@ module.exports = class KevMongo {
       }))
     }
 
-    if (client.topology.hasSessionSupport()) {
+    if (this.transactions && client.topology.hasSessionSupport()) {
       await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
@@ -192,7 +193,7 @@ module.exports = class KevMongo {
       }))
     }
 
-    if (client.topology.hasSessionSupport()) {
+    if (this.transactions && client.topology.hasSessionSupport()) {
       await client
         .withSession((session) => session.withTransaction(execute))
         .catch((err) => {
