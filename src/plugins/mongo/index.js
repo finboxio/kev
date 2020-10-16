@@ -23,7 +23,7 @@ module.exports = class KevMongo {
       if (!this._collection_verified) {
         this._collection_verified = true
         const collections = await database.listCollections().toArray()
-          .catch((e) => process.emitWarning(e.message, 'KevCollectionWarning'))
+          .catch((e) => { process.emitWarning(e.message, 'KevCollectionWarning') })
 
         if (collections && !collections.map((c) => c.name).includes(collection)) {
           await database.createCollection(collection)
@@ -66,7 +66,6 @@ module.exports = class KevMongo {
   }
 
   async set (keyvalues = []) {
-    return Promise.resolve(keyvalues)
     const now = Date.now()
     const [ client, col ] = await Promise.all([ this.client, this.collection() ])
 
