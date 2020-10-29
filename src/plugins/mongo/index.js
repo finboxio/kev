@@ -225,7 +225,7 @@ module.exports = class KevMongo {
   }
 
   async close () {
-    return Promise.resolve(this.client).then((c) => c.close())
+    return Promise.resolve(this.client).then((c) => c.isConnected() && c.close())
   }
 
   _keyStream (query) {
