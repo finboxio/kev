@@ -1,5 +1,5 @@
 const delay = require('delay')
-const uid = require('uid')
+const { uid } = require('uid')
 const zlib = require('zlib')
 const { promisify } = require('util')
 

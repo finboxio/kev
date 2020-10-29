@@ -1,4 +1,4 @@
-const uid = require('uid')
+const { uid } = require('uid')
 
 const Kev = require('..')
 
