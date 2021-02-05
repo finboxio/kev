@@ -8,7 +8,7 @@ const storage = {}
 const tagged_keys = {}
 
 module.exports = class KevMemory {
-  constructor (url, { max_memory = 0 } = {}) {
+  constructor (url, { max_memory = 0, ...lru_opts } = {}) {
     let max = 0
 
     max_memory = String(max_memory).trim()
@@ -20,6 +20,7 @@ module.exports = class KevMemory {
 
     this.tagged_keys = tagged_keys[url] = tagged_keys[url] || {}
     this.storage = storage[url] = storage[url] || new LRU({
+      ...lru_opts,
       max,
       length ({ value, tags = [] }, key) {
         const keylen = Buffer.from(key).length
@@ -44,7 +45,7 @@ module.exports = class KevMemory {
           const keys = tagged_keys[url][tag]
           if (keys) delete keys[key]
         }
-      }
+      },
     })
   }
 
