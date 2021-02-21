@@ -20,7 +20,6 @@ module.exports = class KevMemory {
 
     this.tagged_keys = tagged_keys[url] = tagged_keys[url] || {}
     this.storage = storage[url] = storage[url] || new LRU({
-      ...lru_opts,
       max,
       length ({ value, tags = [] }, key) {
         const keylen = Buffer.from(key).length
@@ -40,12 +39,13 @@ module.exports = class KevMemory {
         const len = keylen + taglen + vallen
         return len
       },
+      ...lru_opts,
       dispose (key, { value, tags = [] }) {
         for (const tag of tags) {
           const keys = tagged_keys[url][tag]
           if (keys) delete keys[key]
         }
-      },
+      }
     })
   }
 
