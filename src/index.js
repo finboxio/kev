@@ -9,8 +9,16 @@ const Resurrect = require('resurrect-js')
 
 const Plugin = require('./plugins')
 
+const PrefixChildren = new WeakMap()
+const TTLChildren = new WeakMap()
+const TagChildren = new WeakMap()
+
 module.exports = class Kev {
   constructor ({ url, ttl, prefix = [], tags = [], compression = false, serializer, ...plugin_opts } = {}) {
+    PrefixChildren.set(this, {})
+    TTLChildren.set(this, {})
+    TagChildren.set(this, {})
+
     this.store = Plugin(url, plugin_opts)
     this.ttl = ttl
     this.prefix = Array.isArray(prefix) ? prefix : [ prefix ]
@@ -54,22 +62,34 @@ module.exports = class Kev {
   }
 
   withPrefix (prefix) {
+    const children = PrefixChildren.get(this)
+    const id = (Array.isArray(prefix) ? prefix : []).join(':')
+    if (children[id]) return children[id]
+
     prefix = this.prefix.concat(prefix)
-    const clone = new Kev({ ...this.opts, prefix })
+    const clone = children[id] = new Kev({ ...this.opts, prefix })
     clone.store = this.store
     return clone
   }
 
   // TODO: augment tags with parent prefixes as well
   withTags (tags) {
+    const children = TagChildren.get(this)
+    const id = (Array.isArray(tags) ? tags : []).join(',')
+    if (children[id]) return children[id]
+
     tags = this.default_tags.concat(tags)
-    const clone = new Kev({ ...this.opts, tags })
+    const clone = children[id] = new Kev({ ...this.opts, tags })
     clone.store = this.store
     return clone
   }
 
   withTTL (ttl) {
-    const clone = new Kev({ ...this.opts, ttl })
+    const children = TTLChildren.get(this)
+    const id = JSON.stringify(ttl)
+    if (children[id]) return children[id]
+
+    const clone = children[id] = new Kev({ ...this.opts, ttl })
     clone.store = this.store
     return clone
   }
