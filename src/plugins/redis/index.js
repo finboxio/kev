@@ -4,6 +4,8 @@ const Redis = require('ioredis')
 const Stream = require('redis-stream')
 const transform = require('stream-transform')
 
+const debug = require('debug')('kev:plugin:redis')
+
 const STATICS = {
   watch: 'WATCH',
   multi: 'MULTI',
@@ -39,12 +41,19 @@ module.exports = class KevRedis {
     const stream = this.stream.stream()
 
     let collect = false
+    let i = 0
     stream.on('data', (data) => {
       if (data === STATICS.next) collect = true
       else if (collect) {
+        const keyvalue = keyvalues[i++]
         collect = false
         if (data !== '-1') {
-          results.push(unpack(data))
+          try {
+            results.push(unpack(data))
+          } catch (e) {
+            debug('failed to unpack data', { data, ...keyvalue })
+            stream.destroy(e)
+          }
         } else {
           results.push(undefined)
         }

@@ -50,6 +50,7 @@
   "dependencies": {
     "bytes": "3.1.0",
     "dataloader": "2.0.0",
+    "debug": "4.3.1",
     "glob-to-regexp": "0.4.1",
     "into-stream": "6.0.0",
     "ioredis": "4.19.4",
