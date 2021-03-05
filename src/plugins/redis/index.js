@@ -11,12 +11,13 @@ const STATICS = {
   multi: 'MULTI',
   echo: 'ECHO',
   next: 'NEXT',
+  done: 'DONE',
   get: 'GET',
   set: 'SET',
   eval: 'EVAL',
   unlink: 'UNLINK',
-  sadd: 'sadd',
-  exec: 'exec',
+  sadd: 'SADD',
+  exec: 'EXEC',
   px: 'px',
   truthy: '1',
   script: 'redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))'
@@ -37,62 +38,85 @@ module.exports = class KevRedis {
   }
 
   async set (keyvalues = []) {
-    const results = []
-    const stream = this.stream.stream()
-
-    let collect = false
-    let i = 0
-    stream.on('data', (data) => {
-      if (data === STATICS.next) collect = true
-      else if (collect) {
-        const keyvalue = keyvalues[i++]
-        collect = false
-        if (data !== '-1') {
-          try {
-            results.push(unpack(data))
-          } catch (e) {
-            debug('failed to unpack data', { data, ...keyvalue })
-            stream.destroy(e)
+    const priors = {}
+    const _set = (keyvalues) => {
+      let i = 0
+      let previous = null
+      let collect = false
+      const retry = []
+      const stream = this.stream.stream()
+      stream.on('data', (data) => {
+        if (data === STATICS.done) stream.end()
+        else if (data === STATICS.next) collect = true
+        else if (previous === 'QUEUED' && ![ 'QUEUED', STATICS.next ].includes(data)) {
+          // Exec failed
+          const keyvalue = keyvalues[i++]
+          retry.push(keyvalue)
+          priors[keyvalue.key] = undefined
+        } else if (collect) {
+          // Get previous value
+          const keyvalue = keyvalues[i++]
+          collect = false
+          if (data === '-1') {
+            priors[keyvalue.key] = undefined
+          } else {
+            try {
+              priors[keyvalue.key] = unpack(data)
+            } catch (e) {
+              debug('failed to unpack data', { data, ...keyvalue })
+              priors[keyvalue.key] = undefined
+            }
           }
-        } else {
-          results.push(undefined)
         }
-      }
-    })
 
-    keyvalues.forEach((keyvalue) => {
-      let { key, value, ttl, tags = [] } = keyvalue
-      const expire = ttl ? [ STATICS.px, ttl ] : []
+        previous = data
+      })
 
-      value = pack(value)
+      const cmds = []
+      keyvalues.forEach((keyvalue) => {
+        let { key, value, ttl, tags = [] } = keyvalue
+        const expire = ttl ? [ STATICS.px, ttl ] : []
 
-      const key_tags = keyTagsKey(key)
-      const cmd = [
-        [ STATICS.watch, key, key_tags ],
-        [ STATICS.multi ],
-        [ STATICS.echo, STATICS.next ],
-        [ STATICS.get, key ],
-        [ STATICS.set, key, value, ...expire ],
-        [ STATICS.eval, STATICS.script, 1, key_tags ],
-        [ STATICS.unlink, key_tags ]
-      ]
+        value = pack(value)
 
-      if (tags.length) {
-        const tag_keys = tags.map(keyTagKey(key))
-        tag_keys.forEach((tag) => cmd.push([ STATICS.set, tag, STATICS.truthy, ...expire ]))
-        cmd.push([ STATICS.sadd, key_tags, ...tag_keys ])
-      }
+        const key_tags = keyTagsKey(key)
+        const cmd = [
+          [ STATICS.watch, key, key_tags ],
+          [ STATICS.multi ],
+          [ STATICS.echo, STATICS.next ],
+          [ STATICS.get, key ],
+          [ STATICS.set, key, value, ...expire ],
+          [ STATICS.eval, STATICS.script, 1, key_tags ],
+          [ STATICS.unlink, key_tags ]
+        ]
 
-      cmd.push([ STATICS.exec ])
+        if (tags.length) {
+          const tag_keys = tags.map(keyTagKey(key))
+          tag_keys.forEach((tag) => cmd.push([ STATICS.set, tag, STATICS.truthy, ...expire ]))
+          cmd.push([ STATICS.sadd, key_tags, ...tag_keys ])
+        }
 
-      cmd.map((c) => Stream.parse(c)).forEach((c) => stream.redis.write(c))
-    })
+        cmd.push([ STATICS.exec ])
 
-    return new Promise((resolve, reject) => {
-      stream.on('close', () => { resolve(results) })
-      stream.on('error', (e) => { reject(e) })
-      stream.end()
-    })
+        cmd.map((c) => Stream.parse(c)).forEach((c) => stream.redis.write(c))
+      })
+
+      stream.redis.write(Stream.parse([ STATICS.echo, STATICS.done ]))
+
+      return new Promise((resolve, reject) => {
+        stream.on('close', () => resolve({ retry }))
+        stream.on('error', (e) => reject(e))
+      })
+    }
+
+    let kvs = keyvalues
+    while (kvs.length) {
+      const { retry } = await _set(kvs)
+      kvs = retry
+      kvs.forEach((kv) => debug('retrying', kv.key))
+    }
+
+    return keyvalues.map(({ key }) => priors[key])
   }
 
   async del (keys = []) {
