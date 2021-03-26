@@ -9,6 +9,7 @@
     "performance": "node benchmarks/performance.js",
     "precommit": "npm run lint",
     "prepush": "npm run dc:test",
+    "migrate": "node scripts/migrate.js",
     "dc:destroy": "docker-compose $(make dc.files) down -v --remove-orphans",
     "dc:test": "docker-compose $(make dc.files) build test && docker-compose $(make dc.files) run --rm test test --"
   },
@@ -34,7 +35,9 @@
     "eslint-plugin-standard": "5.0.0",
     "husky": "4.3.8",
     "jest": "26.6.3",
-    "uid": "2.0.0"
+    "uid": "2.0.0",
+    "kev1": "git+https://github.com/finboxio/kev.git#v1.3.2",
+    "kev2": "git+https://github.com/finboxio/kev.git#v2.4.3"
   },
   "repository": {
     "type": "git",
