@@ -1,4 +1,4 @@
-FROM mhart/alpine-node:12.3.1
+FROM mhart/alpine-node:15
 
 ENV PATH=$PATH:/usr/src/node_modules/.bin
 ARG NODE_ENV=test

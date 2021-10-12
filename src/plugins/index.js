@@ -6,7 +6,7 @@ module.exports = (url = 'memory://', { loader, memory, mongo, redis }) => {
     return loaders(new Redis(url, redis), loader)
   }
 
-  if (url.startsWith('mongodb://')) {
+  if (url.startsWith('mongodb://') || url.startsWith('mongodb+srv://')) {
     const Mongo = require('./mongo')
     return loaders(new Mongo(url, mongo), loader)
   }
