@@ -9,13 +9,13 @@ module.exports = class KevMongo {
     this._collection_verified = false
     this.client = client || new MongoClient(url, { ...options, useNewUrlParser: true, useUnifiedTopology: true })
 
-    this._connect = Promise.resolve(this.client).then((client) => !client.isConnected() ? client.connect() : client)
+    this._connect = Promise.resolve(this.client).then((client) => !client.topology?.isConnected() ? client.connect() : client)
 
     this.transactions = use_transactions
     this.collection = async () => {
       const client = await this.client
 
-      if (!client.isConnected()) {
+      if (!client.topology?.isConnected()) {
         await this._connect
       }
 
@@ -183,7 +183,7 @@ module.exports = class KevMongo {
       await execute()
     }
 
-    return response.map(({ result }) => result.n)
+    return response.map((result) => result.deletedCount)
   }
 
   async dropTags (tags = []) {
@@ -213,7 +213,7 @@ module.exports = class KevMongo {
       await execute()
     }
 
-    return response.map(({ result }) => result.n)
+    return response.map((result) => result.deletedCount)
   }
 
   tagged (tag) {
