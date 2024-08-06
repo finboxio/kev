@@ -1,7 +1,8 @@
-version: '3'
+version: "3"
 
 volumes:
   mongo-init: {}
+  mongo-rsinit: {}
 
 services:
   test:
@@ -43,15 +44,15 @@ services:
   mongo_replset:
     image: mongo:4.2
     depends_on:
-      - mongo-init
+      - mongo-rsinit
     volumes:
-      - mongo-init:/opt/mongo-init
+      - mongo-rsinit:/opt/mongo-init
     hostname: mongo_replset
     entrypoint: /opt/mongo-init/bin/entrypoint.sh
     environment:
       MONGO_REPLSET: repl
       MONGO_ROLE: primary
-  mongo-init:
+  mongo-rsinit:
     image: finboxio/mongo-init:v0.2.0
     volumes:
-      - mongo-init:/opt/mongo-init
+      - mongo-rsinit:/opt/mongo-init
