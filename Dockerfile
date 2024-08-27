@@ -1,4 +1,4 @@
-FROM mhart/alpine-node:15
+FROM node:22.4.1
 
 ENV PATH=$PATH:/usr/src/node_modules/.bin
 ARG NODE_ENV=test
@@ -8,6 +8,7 @@ ENV NODE_ENV=$NODE_ENV
 ENV NODE_PATH=/usr/src/kev
 ADD package.json package-lock.json /tmp/
 RUN cd /tmp && \
+    # npm cache clean --force && \
     npm install && \
     rm -rf /root/.npm && \
     mkdir -p /usr/src/kev && \

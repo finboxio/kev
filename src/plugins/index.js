@@ -1,6 +1,6 @@
 const DataLoader = require('dataloader')
 
-module.exports = (url = 'memory://', { loader, memory, mongo, redis }) => {
+module.exports = (url = 'memory://', { loader, memory, mongo, redis, aerospike }) => {
   if (url.startsWith('redis://')) {
     const Redis = require('./redis')
     return loaders(new Redis(url, redis), loader)
@@ -14,6 +14,11 @@ module.exports = (url = 'memory://', { loader, memory, mongo, redis }) => {
   if (url.startsWith('memory://')) {
     const Memory = require('./memory')
     return loaders(new Memory(url, memory), loader)
+  }
+  
+  if (url.startsWith('http://')) {
+    const Aerospike = require('./aerospike')
+    return loaders(new Aerospike(url.replace('http://', ''), aerospike), loader)
   }
 }
 

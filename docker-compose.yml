@@ -10,6 +10,7 @@ services:
       context: .
       args:
         NODE_ENV: test
+    platform: linux/amd64
     command: test
     volumes:
       - ./src:/usr/src/kev/src
@@ -22,10 +23,12 @@ services:
       REDIS_URL: redis://redis:6379
       MONGO_URL: mongodb://mongo_standalone:27017/test?retryWrites=false
       MONGO_RS_URL: mongodb://mongo_replset:27017/test?replicaSet=repl
-
+      AEROSPIKE_URL: http://aerospikedb:3000 #http://aerospike-2.ams-qa.gcp.finbox.com:3000
+    depends_on:
+      aerospikedb:
+        condition: service_healthy
   redis:
     image: redis:alpine
-
   mongo_standalone:
     image: mongo:4.2
     depends_on:
@@ -56,3 +59,9 @@ services:
     image: finboxio/mongo-init:v0.2.0
     volumes:
       - mongo-rsinit:/opt/mongo-init
+  aerospikedb:
+    image: aerospike/aerospike-server:7.1
+    healthcheck:
+      test: /bin/asinfo -v status
+    ports:
+      - "3000:3000"
