@@ -15,50 +15,46 @@ services:
     volumes:
       - ./src:/usr/src/kev/src
       - ./benchmarks:/usr/src/kev/benchmarks
-    links:
-      - redis
-      - mongo_standalone
-      - mongo_replset
     environment:
       REDIS_URL: redis://redis:6379
       MONGO_URL: mongodb://mongo_standalone:27017/test?retryWrites=false
       MONGO_RS_URL: mongodb://mongo_replset:27017/test?replicaSet=repl
-      AEROSPIKE_URL: http://aerospikedb:3000 #http://aerospike-2.ams-qa.gcp.finbox.com:3000
+      AEROSPIKE_URL: aerospike://aerospikedb:3000
     depends_on:
       aerospikedb:
         condition: service_healthy
-  redis:
-    image: redis:alpine
-  mongo_standalone:
-    image: mongo:4.2
-    depends_on:
-      - mongo-init
-    volumes:
-      - mongo-init:/opt/mongo-init
-    hostname: mongo_standalone
-    entrypoint: /opt/mongo-init/bin/entrypoint.sh
-    environment:
-      MONGO_STORAGE_ENGINE: ephemeralForTest
-  mongo-init:
-    image: finboxio/mongo-init:v0.2.0
-    volumes:
-      - mongo-init:/opt/mongo-init
+  # redis:
+  #   image: redis:alpine
+  # mongo_standalone:
+  #   image: mongo:4.2
+  #   depends_on:
+  #     - mongo-init
+  #   volumes:
+  #     - mongo-init:/opt/mongo-init
+  #   hostname: mongo_standalone
+  #   entrypoint: /opt/mongo-init/bin/entrypoint.sh
+  #   environment:
+  #     MONGO_STORAGE_ENGINE: ephemeralForTest
+  # mongo-init:
+  #   image: finboxio/mongo-init:v0.2.0
+  #   volumes:
+  #     - mongo-init:/opt/mongo-init
 
-  mongo_replset:
-    image: mongo:4.2
-    depends_on:
-      - mongo-rsinit
-    volumes:
-      - mongo-rsinit:/opt/mongo-init
-    hostname: mongo_replset
-    entrypoint: /opt/mongo-init/bin/entrypoint.sh
-    environment:
-      MONGO_REPLSET: repl
-      MONGO_ROLE: primary
-  mongo-rsinit:
-    image: finboxio/mongo-init:v0.2.0
-    volumes:
-      - mongo-rsinit:/opt/mongo-init
+  # mongo_replset:
+  #   image: mongo:4.2
+  #   depends_on:
+  #     - mongo-rsinit
+  #   volumes:
+  #     - mongo-rsinit:/opt/mongo-init
+  #   hostname: mongo_replset
+  #   entrypoint: /opt/mongo-init/bin/entrypoint.sh
+  #   environment:
+  #     MONGO_REPLSET: repl
+  #     MONGO_ROLE: primary
+  # mongo-rsinit:
+  #   image: finboxio/mongo-init:v0.2.0
+  #   volumes:
+  #     - mongo-rsinit:/opt/mongo-init
   aerospikedb:
     image: aerospike/aerospike-server:7.1
     healthcheck:

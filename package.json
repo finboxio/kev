@@ -4,7 +4,7 @@
   "description": "Key-Value API with pluggable backends. So simple, even Kevin Malone could use it.",
   "main": "src/index.js",
   "scripts": {
-    "test": "jest",
+    "test": "jest --silent=false",
     "lint": "eslint src",
     "performance": "node benchmarks/performance.js",
     "precommit": "npm run lint",
@@ -52,7 +52,7 @@
     ]
   },
   "dependencies": {
-    "aerospike": "^5.12.1",
+    "aerospike": "5.12.1",
     "bytes": "3.1.0",
     "dataloader": "2.0.0",
     "debug": "4.3.2",

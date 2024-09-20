@@ -16,9 +16,9 @@ module.exports = (url = 'memory://', { loader, memory, mongo, redis, aerospike }
     return loaders(new Memory(url, memory), loader)
   }
   
-  if (url.startsWith('http://')) {
+  if (url.startsWith('aerospike://')) {
     const Aerospike = require('./aerospike')
-    return loaders(new Aerospike(url.replace('http://', ''), aerospike), loader)
+    return loaders(new Aerospike(url.replace('aerospike://', ''), aerospike), loader)
   }
 }
 
