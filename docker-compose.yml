@@ -23,7 +23,7 @@ services:
       REDIS_URL: redis://redis:6379
       MONGO_URL: mongodb://mongo_standalone:27017/test?retryWrites=false
       MONGO_RS_URL: mongodb://mongo_replset:27017/test?replicaSet=repl
-      AEROSPIKE_URL: http://aerospikedb:3000 #http://aerospike-2.ams-qa.gcp.finbox.com:3000
+      AEROSPIKE_URL: aerospike://aerospikedb:3000
     depends_on:
       aerospikedb:
         condition: service_healthy

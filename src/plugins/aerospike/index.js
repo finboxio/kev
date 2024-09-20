@@ -67,7 +67,7 @@ module.exports = class KevAerospike {
     }))
 
     const previous = await this.get(keyvalues.map(({ key }) => key))
-
+    
     await this.client.batchWrite(batchRecords)
     return previous
   }

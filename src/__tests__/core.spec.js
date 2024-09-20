@@ -22,13 +22,13 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
     /* json.stringified data does not maintain type info */
     ![ 'json' ].includes(serializer) &&
     /* redis will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongodb:/|/http:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/|/aerospike:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   const test_undef_restoration = true &&
     /* json.stringified data does not maintain undefined info */
     ![ 'json' ].includes(serializer) &&
     /* redis/mongo will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongodb:/|/http:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/|/aerospike:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   describe(`${url} (compression=${compression && compression.type}, serializer=${serializer})`, () => {
     const prefix = `test-${uid()}`
@@ -265,7 +265,7 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
     })
 
     describe('ttl', () => {
-      const kev = new Kev({ url, prefix, compression, serializer, ttl: '2000ms' })
+      const kev = new Kev({ url, prefix, compression, serializer, ttl: '1000ms' })
       afterAll(() => kev.dropKeys().then(() => kev.close()))
 
       it('should expire keys after the default ttl period', async () => {
@@ -273,22 +273,22 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
         await expect(kev.get('key')).resolves.toStrictEqual(1)
         await delay(500)
         await expect(kev.get('key')).resolves.toStrictEqual(1)
-        await delay(2000)
+        await delay(1500)
         await expect(kev.get('key')).resolves.toBeUndefined()
       })
 
       it('should support custom ttl on retrieval', async () => {
         await kev.set('key', 1)
-        await expect(kev.get('key', { ttl: '2000ms' })).resolves.toStrictEqual(1)
-        await delay(2000) 
-        await expect(kev.get('key', { ttl: '2000ms' })).resolves.toBeUndefined()
+        await expect(kev.get('key', { ttl: '100ms' })).resolves.toStrictEqual(1)
+        await delay(500) 
+        await expect(kev.get('key', { ttl: '100ms' })).resolves.toBeUndefined()
       })
 
       it('should support custom rtl on retrieval', async () => {
         await kev.set('key', 1)
-        await expect(kev.get('key', { rtl: '300ms' })).resolves.toStrictEqual(1)
-        await delay(2000)
-        await expect(kev.get('key', { rtl: '300ms' })).resolves.toBeUndefined()
+        await expect(kev.get('key', { rtl: '600ms' })).resolves.toStrictEqual(1)
+        await delay(500)
+        await expect(kev.get('key', { rtl: '600ms' })).resolves.toBeUndefined()
       })
 
       it('should expire keys after a custom ttl period', async () => {
