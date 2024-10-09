@@ -1,4 +1,12 @@
-FROM node:22.4.1
+FROM debian:latest
+
+RUN apt-get update && \
+    apt-get install -y curl xz-utils && \
+    curl -fsSL https://nodejs.org/dist/v14.16.0/node-v14.16.0-linux-x64.tar.xz -o node.tar.xz && \
+    tar -xf node.tar.xz -C /usr/local --strip-components=1 && \
+    rm node.tar.xz && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 ENV PATH=$PATH:/usr/src/node_modules/.bin
 ARG NODE_ENV=test

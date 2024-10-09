@@ -3,6 +3,8 @@ const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
 const TOTAL_TIMEOUT = 2000;
+const NODE_MAJOR_VERSION = Number(process.versions.node.split('.')[0]);
+
 
 module.exports = class KevAerospike {
   constructor (url, options = {}) {
@@ -45,7 +47,13 @@ module.exports = class KevAerospike {
     const aKeys = keys.map(k => new Aerospike.Key(this._namespace, this._set, k))
     const result = await this.client.batchGet(aKeys)
     return result.map((value) => {
-      if (value) return value?.record?.bins?.data
+      if (!value.record?.bins
+        || value.record.bins.data?.e != value.record.bins.data?.s
+          && value.record.bins.data.e < Date.now()
+      ) {
+        return undefined
+      }
+      return value?.record?.bins?.data
     })
   }
 
@@ -67,8 +75,15 @@ module.exports = class KevAerospike {
     }))
 
     const previous = await this.get(keyvalues.map(({ key }) => key))
-    
-    await this.client.batchWrite(batchRecords)
+
+    if (NODE_MAJOR_VERSION > 14) {
+      await this.client.batchWrite(batchRecords)
+    } else {
+      await Promise.all(keyvalues.map(async ({ key, value, ttl, tags }) => {
+        const aKey = new Aerospike.Key(this._namespace, this._set, key)
+        await this.client.put(aKey, { data: value, tags }, { ttl });
+      }))
+    }
     return previous
   }
 
@@ -123,7 +138,7 @@ module.exports = class KevAerospike {
     const query = this.client.query(this._namespace, this._set)
     query.where(Aerospike.filter.contains('tags', tag, Aerospike.indexType.LIST));
     const results = query.foreach();
-    const outStr = results.pipe(transform((record) => record.key.key))
+    const outStr = results.pipe(transform((record) => !record.bins || record.bins.data?.e != record.bins.data?.s && record.bins?.data?.e < Date.now() ? undefined : record.key.key))
     return outStr
   }
 
