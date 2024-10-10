@@ -104,7 +104,7 @@ module.exports = class Kev {
 
     const result = await this.store.get.load(key)
     if (!result) return
-
+    
     if (rtl > 0 && rtl < 1) rtl = (result.e - result.s) * rtl
     const check_rtl = rtl !== null && rtl !== undefined
     const rtl_pass = !check_rtl || (result.e || Infinity) >= (Date.now() + ms(String(rtl || 0)))

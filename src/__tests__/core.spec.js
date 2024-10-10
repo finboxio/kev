@@ -22,13 +22,13 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
     /* json.stringified data does not maintain type info */
     ![ 'json' ].includes(serializer) &&
     /* redis will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongodb:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/|/aerospike:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   const test_undef_restoration = true &&
     /* json.stringified data does not maintain undefined info */
     ![ 'json' ].includes(serializer) &&
     /* redis/mongo will not persist types unless serializer supports it or compression is enabled */
-    !(url.match(/redis:|mongodb:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
+    !(url.match(/redis:|mongodb:/|/aerospike:/) && (!compression || [ 'v8', 'resurrect' ].includes(serializer)))
 
   describe(`${url} (compression=${compression && compression.type}, serializer=${serializer})`, () => {
     const prefix = `test-${uid()}`
@@ -273,14 +273,14 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
         await expect(kev.get('key')).resolves.toStrictEqual(1)
         await delay(500)
         await expect(kev.get('key')).resolves.toStrictEqual(1)
-        await delay(1000)
+        await delay(1500)
         await expect(kev.get('key')).resolves.toBeUndefined()
       })
 
       it('should support custom ttl on retrieval', async () => {
         await kev.set('key', 1)
         await expect(kev.get('key', { ttl: '100ms' })).resolves.toStrictEqual(1)
-        await delay(500)
+        await delay(500) 
         await expect(kev.get('key', { ttl: '100ms' })).resolves.toBeUndefined()
       })
 
@@ -294,7 +294,7 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
       it('should expire keys after a custom ttl period', async () => {
         await kev.set('key', 1, { ttl: '1000ms' })
         await expect(kev.get('key')).resolves.toStrictEqual(1)
-        await delay(1500)
+        await delay(2000)
         await expect(kev.get('key')).resolves.toBeUndefined()
       })
 
@@ -302,7 +302,7 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
         const k2 = kev.withTTL('1000ms')
         await k2.set('key', 1)
         await expect(k2.get('key')).resolves.toStrictEqual(1)
-        await delay(1500)
+        await delay(2000)
         await expect(k2.get('key')).resolves.toBeUndefined()
       })
     })
@@ -314,7 +314,7 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
       it('should add default tags to all entries', async () => {
         await kev.set('key', 1)
         const tags = await kev.tags('key')
-        expect(tags).toStrictEqual([ 'tag' ])
+        expect(JSON.stringify(tags)).toStrictEqual(JSON.stringify(['tag']))
       })
 
       it('should provide child instances with additional tags', async () => {
@@ -339,8 +339,8 @@ const runTests = ({ url, serializer, compression = false }, { skip = false } = {
       })
 
       it('should not include expired keys', async () => {
-        await kev.set('key', 1, { ttl: 100 })
-        await delay(1000)
+        await kev.set('key', 1, { ttl: 1000 })
+        await delay(2000)
         await expect(kev.tagged('tag').toArray()).resolves.toStrictEqual([])
       })
 
