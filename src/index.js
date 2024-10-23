@@ -6,6 +6,7 @@ const ms = require('ms')
 const transform = require('stream-transform')
 const read = require('stream-to-array')
 const Resurrect = require('resurrect-js')
+const fs = require('fs')
 
 const Plugin = require('./plugins')
 
@@ -18,7 +19,6 @@ module.exports = class Kev {
     PrefixChildren.set(this, {})
     TTLChildren.set(this, {})
     TagChildren.set(this, {})
-
     this.store = Plugin(url, plugin_opts)
     this.ttl = ttl
     this.prefix = Array.isArray(prefix) ? prefix : [ prefix ]
@@ -104,7 +104,7 @@ module.exports = class Kev {
 
     const result = await this.store.get.load(key)
     if (!result) return
-
+    
     if (rtl > 0 && rtl < 1) rtl = (result.e - result.s) * rtl
     const check_rtl = rtl !== null && rtl !== undefined
     const rtl_pass = !check_rtl || (result.e || Infinity) >= (Date.now() + ms(String(rtl || 0)))
