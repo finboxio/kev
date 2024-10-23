@@ -76,7 +76,7 @@ module.exports = class KevAerospike {
 
     const previous = await this.get(keyvalues.map(({ key }) => key))
 
-    if (NODE_MAJOR_VERSION > 14) {
+    if (typeof this.client.batchWrite === 'function') {
       await this.client.batchWrite(batchRecords)
     } else {
       await Promise.all(keyvalues.map(async ({ key, value, ttl, tags }) => {
