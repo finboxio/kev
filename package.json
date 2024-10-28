@@ -24,6 +24,7 @@
   "author": "Finbox Inc.",
   "license": "MIT",
   "devDependencies": {
+    "aerospike": "5.4.0",
     "delay": "5.0.0",
     "envvar": "2.0.0",
     "eslint": "7.23.0",
@@ -65,5 +66,8 @@
     "resurrect-js": "1.0.1",
     "stream-to-array": "2.3.0",
     "stream-transform": "2.1.3"
+  },
+  "peerDependencies": {
+    "aerospike": ">=5.4.0 || <= 5.12.1"
   }
 }
