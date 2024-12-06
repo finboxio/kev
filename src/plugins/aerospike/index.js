@@ -9,9 +9,9 @@ const NODE_MAJOR_VERSION = Number(process.versions.node.split('.')[0]);
 module.exports = class KevAerospike {
   constructor (url, options = {}) {
     const { namespace, set } = options;
-
+    const hosts = options.hosts ?? url;
     this.client = Aerospike.client({
-      hosts: url,
+      hosts,
       policies: {
         read: new Aerospike.ReadPolicy({
           totalTimeout: TOTAL_TIMEOUT
