@@ -34,7 +34,7 @@ module.exports = class KevAerospike {
       ns: this._namespace,
       set: this._set,
       bin: 'tags',
-      index: 'tags_idx',
+      index: `tags_idx_${this._namespace}_${this._set}`,
       type: Aerospike.indexType.LIST,
       datatype: Aerospike.indexDataType.STRING,
     }
