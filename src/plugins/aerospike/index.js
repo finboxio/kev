@@ -3,13 +3,14 @@ const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
 const TOTAL_TIMEOUT = 2000;
-const NODE_MAJOR_VERSION = Number(process.versions.node.split('.')[0]);
-
 
 module.exports = class KevAerospike {
   constructor (url, options = {}) {
     const { namespace, set } = options;
-    const hosts = options.hosts ?? url;
+    const hosts = url.split(',').map((url) => ({
+      addr: url.split(':')[0],
+      port: url.split(':')[1] ? parseInt(url.split(':')[1]) : 3000,
+    }))
     this.client = Aerospike.client({
       hosts,
       policies: {
