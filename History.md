@@ -1,3 +1,18 @@
+2.6.3 / 2024-12-26
+==================
+
+  * Changed aerospike hosts to parse from url
+
+2.6.2 / 2024-12-06
+==================
+
+  * Added NS and SET to index name in Aerospike
+  
+2.6.1 / 2024-12-06
+==================
+
+  * Added hosts to Kev options: connect to cluster
+
 2.6.0 / 2024-10-28
 ==================
 
