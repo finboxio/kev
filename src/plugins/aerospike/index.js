@@ -155,6 +155,6 @@ module.exports = class KevAerospike {
 
   async close () {
     await this._connected;
-    return client.close()
+    return this.client.close()
   }
 }
