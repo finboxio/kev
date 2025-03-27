@@ -110,8 +110,15 @@ module.exports = class KevRedis {
     }
 
     let kvs = keyvalues
+    let retries = 0
     while (kvs.length) {
       const { retry } = await _set(kvs)
+      if (retry.length) {
+        if (retries > 15) { throw new Error('Too many retries') }
+        const delay = Math.min(50 + Math.pow(2, retries++), 10000)
+        const fuzz = Math.floor((Math.random() - 0.5) * delay)
+        await new Promise((resolve) => setTimeout(resolve, delay + fuzz))
+      }
       kvs = retry
       kvs.forEach((kv) => debug('retrying', kv.key))
     }

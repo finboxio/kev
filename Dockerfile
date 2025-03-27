@@ -1,7 +1,7 @@
 FROM debian:latest
 
 RUN apt-get update && \
-    apt-get install -y curl xz-utils && \
+    apt-get install -y curl xz-utils git && \
     curl -fsSL https://nodejs.org/dist/v14.16.0/node-v14.16.0-linux-x64.tar.xz -o node.tar.xz && \
     tar -xf node.tar.xz -C /usr/local --strip-components=1 && \
     rm node.tar.xz && \

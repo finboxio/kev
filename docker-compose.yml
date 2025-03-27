@@ -63,5 +63,3 @@ services:
     image: aerospike/aerospike-server:7.1
     healthcheck:
       test: /bin/asinfo -v status
-    ports:
-      - "3000:3000"
