@@ -20,7 +20,7 @@ const STATICS = {
   exec: 'EXEC',
   px: 'px',
   truthy: '1',
-  script: 'redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))'
+  script: 'local members = redis.call("smembers", KEYS[1]); if #members > 0 then return redis.call("unlink", unpack(members)) else return 0 end'
 }
 
 module.exports = class KevRedis {
@@ -124,7 +124,7 @@ module.exports = class KevRedis {
 
     cmd = keys.reduce((cmd, key) => cmd.unlink(key), cmd)
 
-    const script = 'redis.call("unlink", unpack(redis.call("smembers", KEYS[1])))'
+    const script = STATICS.script
     cmd = keys.reduce((cmd, key) => cmd.eval(script, 1, keyTagsKey(key)), cmd)
 
     cmd = cmd.unlink(keys.map(keyTagsKey))
