@@ -2,7 +2,7 @@ const Aerospike = require('aerospike');
 const globber = require('glob-to-regexp')
 const transform = require('stream-transform')
 
-const TOTAL_TIMEOUT = 2000;
+const TOTAL_TIMEOUT = 5000;
 
 module.exports = class KevAerospike {
   constructor (url, options = {}) {
